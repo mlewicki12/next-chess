@@ -28,8 +28,7 @@ const Square = ({
   dark, piece
 }: Square) => {
   return (
-    // kinda hacky, but it works
-    <div className={`${dark ? 'bg-primary even:bg-secondary' : 'bg-secondary even:bg-primary'}
+    <div className={`${dark ? 'bg-primary' : 'bg-secondary'}
       w-24 h-24`}>
       {piece && <ChessPiece piece={piece} />}
     </div>
