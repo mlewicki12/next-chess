@@ -24,6 +24,7 @@ const defineBoard = () => {
 
 const Home: NextPage = () => {
   const [board, setBoard] = useState<Board>(defineBoard());
+  const [selected, setSelected] = useState<number>(-1);
 
   return (
     <>
@@ -38,7 +39,9 @@ const Home: NextPage = () => {
           <>
             {index % 8 === 0 && <div className='w-24 h-24 flex justify-center items-center text-2xl font-bold
               bg-background'>{8 - (index / 8)}</div>}
-            <Square key={index} piece={item} dark={(Math.floor(index / 8) % 2 === 0 ? index % 2 === 1 : index % 2 === 0)} />
+            <Square key={index} piece={item} index={index}
+              setSelected={setSelected} selected={index === selected}
+              dark={Math.floor(index / 8) % 2 === 0 ? index % 2 === 1 : index % 2 === 0} />
           </>
         ))}
         {['', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(item => (

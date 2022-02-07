@@ -2,6 +2,10 @@
 import ChessPiece from 'react-chess-pieces';
 
 type Square = {
+  index: number;
+  selected: boolean;
+  setSelected: (id: number) => void;
+
   dark?: boolean;
   piece?: Piece;
 };
@@ -25,10 +29,13 @@ export enum Piece {
 }
 
 const Square = ({
-  dark, piece
+  index, setSelected, dark, selected, piece
 }: Square) => {
   return (
-    <div className={`${dark ? 'bg-primary' : 'bg-secondary'}
+    // kinda hacky, but it works
+    <div onClick={() => piece && (selected ? setSelected(-1) : setSelected(index))}
+      className={`${dark ? 'bg-primary' : 'bg-secondary'}
+      ${selected ? 'scale-125 z-50 shadow-xl' : 'scale-100'}
       w-24 h-24`}>
       {piece && <ChessPiece piece={piece} />}
     </div>
