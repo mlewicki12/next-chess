@@ -54,8 +54,10 @@ const Home: NextPage = () => {
       <main className='p-2 grid grid-cols-9 grid-rows-9 gap-2 w-max'>
         {board.map((item, index) => ( 
           <>
-            {index % 8 === 0 && <div key={`piece-${8-(index/8)}`} className='w-24 h-24 flex justify-center items-center text-2xl font-bold
-              bg-background'>{8 - (index / 8)}</div>}
+            {index % 8 === 0 && <div key={`piece-${8-(index/8)}`} className='w-12 h-12 flex justify-center items-center text-lg font-bold bg-background
+              sm:w-16 sm:h-16 sm:text-xl
+              md:w-20 md:h-20 md:text-2xl
+              lg:w-24 lg:h-24'>{8 - (index / 8)}</div>}
             <Square
               key={index}
               piece={item}
@@ -79,8 +81,11 @@ const Home: NextPage = () => {
           </>
         ))}
         {['', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].map(item => (
-          <div key={item} className='w-24 h-24 flex justify-center items-center text-2xl font-bold
-            bg-background'>{item}</div>
+          <div key={item} className='w-12 h-12 flex justify-center items-center text-lg font-bold bg-background
+            sm:w-16 sm:h-16 sm:text-xl
+            md:w-20 md:h-20 md:text-2xl
+            lg:w-24 lg:h-24
+            '>{item}</div>
         ))}
       </main>
     </>
