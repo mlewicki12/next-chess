@@ -1,4 +1,3 @@
-import { moveMessagePortToContext } from "worker_threads";
 
 export enum Piece {
   EMPTY = '',
@@ -10,6 +9,9 @@ export enum Piece {
   WHITE_BISHOP = 'B',
   WHITE_QUEEN = 'Q',
   WHITE_KING = 'K',
+
+  WHITE_KING_CASTLE = 'KC',
+  WHITE_ROOK_CASTLE = 'RC',
   
   BLACK_PAWN = 'p',
   BLACK_PAWN_EN_PASSANT = 'pp',
@@ -18,7 +20,22 @@ export enum Piece {
   BLACK_BISHOP = 'b',
   BLACK_QUEEN = 'q',
   BLACK_KING = 'k',
+
+  BLACK_KING_CASTLE = 'kc',
+  BLACK_ROOK_CASTLE = 'rc'
 }
+
+// mb a lil misnomer, but this will make sure we can display special pieces
+export const SanitisePiece = (piece: Piece) =>
+  piece === Piece.WHITE_KING_CASTLE
+  ? Piece.WHITE_KING
+  : piece === Piece.WHITE_ROOK_CASTLE
+    ? Piece.WHITE_ROOK
+    : piece === Piece.BLACK_KING_CASTLE
+      ? Piece.BLACK_KING
+      : piece === Piece.BLACK_ROOK_CASTLE
+        ? Piece.BLACK_ROOK
+        : piece;
 
 export type Board = Piece[];
 
@@ -36,14 +53,42 @@ const canTake = (piece: Piece, other: Piece) => !areSameColor(piece, other);
 // for the sake of this function en passant counts as empty
 const isEmpty = (piece: Piece) => piece === Piece.EMPTY || piece === Piece.WHITE_PAWN_EN_PASSANT || piece === Piece.BLACK_PAWN_EN_PASSANT;
 const isPawn = (piece: Piece) => piece === Piece.WHITE_PAWN || piece === Piece.BLACK_PAWN;
+const isKing = (piece: Piece) => piece === Piece.WHITE_KING || piece === Piece.WHITE_KING_CASTLE || piece === Piece.BLACK_KING || piece === Piece.BLACK_KING_CASTLE;
 const enPassant = (piece: Piece) => piece === Piece.WHITE_PAWN ? Piece.WHITE_PAWN_EN_PASSANT : Piece.BLACK_PAWN_EN_PASSANT;
 const isEnPassant = (piece: Piece) => piece === Piece.WHITE_PAWN_EN_PASSANT || piece === Piece.BLACK_PAWN_EN_PASSANT;
 
-const WhitePieces = [ Piece.WHITE_PAWN, Piece.WHITE_PAWN_EN_PASSANT, Piece.WHITE_ROOK,
-  Piece.WHITE_KNIGHT, Piece.WHITE_BISHOP, Piece.WHITE_QUEEN, Piece.WHITE_KING ];
+const canCastle = (board: Board, position: number) => {
+  if(board[position] !== Piece.WHITE_KING_CASTLE && board[position] !== Piece.BLACK_KING_CASTLE) return {left: false, right: false};
 
-const BlackPieces = [ Piece.BLACK_PAWN, Piece.BLACK_PAWN_EN_PASSANT, Piece.BLACK_ROOK,
-  Piece.BLACK_KNIGHT, Piece.BLACK_BISHOP, Piece.BLACK_QUEEN, Piece.BLACK_KING ];
+  var pos = position - 1;
+  var left = false, right = false;
+
+  while(!isOnLeftEdge(pos)) {
+    if(!isEmpty(board[pos])) break;
+    pos -= 1;
+  }
+
+  // there is a very tiny edge case of if this ever supports custom defined boards
+  // there is a chance for a white king to castle on a black rook or vice versa
+  // bc this is colour agnostic, but it shouldn't be an issue in regular play bc these
+  // never escape their starting positions
+  if(board[pos] === Piece.WHITE_ROOK_CASTLE || board[pos] === Piece.BLACK_ROOK_CASTLE) left = true;
+
+  pos = position + 1;
+  while(!isOnRightEdge(pos)) {
+    if(!isEmpty(board[pos])) break;
+    pos += 1;
+  }
+
+  if(board[pos] === Piece.WHITE_ROOK_CASTLE || board[pos] === Piece.BLACK_ROOK_CASTLE) right = true;
+  return {left: left, right: right};
+}
+
+const WhitePieces = [ Piece.WHITE_PAWN, Piece.WHITE_PAWN_EN_PASSANT, Piece.WHITE_ROOK, Piece.WHITE_ROOK_CASTLE,
+  Piece.WHITE_KNIGHT, Piece.WHITE_BISHOP, Piece.WHITE_QUEEN, Piece.WHITE_KING, Piece.WHITE_KING_CASTLE ];
+
+const BlackPieces = [ Piece.BLACK_PAWN, Piece.BLACK_PAWN_EN_PASSANT, Piece.BLACK_ROOK, Piece.BLACK_ROOK_CASTLE,
+  Piece.BLACK_KNIGHT, Piece.BLACK_BISHOP, Piece.BLACK_QUEEN, Piece.BLACK_KING, Piece.BLACK_KING_CASTLE ];
 
 const isWhite = (piece: Piece) => WhitePieces.includes(piece);
 const isBlack = (piece: Piece) => BlackPieces.includes(piece);
@@ -101,7 +146,8 @@ export const ProcessMove = (board: Board, position: number, intended: number) =>
     }
   }
 
-  newBoard[intended] = piece;
+  // this will dirty (heh get it) the piece if it moves
+  newBoard[intended] = SanitisePiece(piece);
   newBoard[position] = Piece.EMPTY;
 
   // clear out leftover en passant pieces
@@ -114,8 +160,21 @@ export const ProcessMove = (board: Board, position: number, intended: number) =>
     if(isWhite(piece)) {
       newBoard[position - 8] = enPassant(piece);
     } else {
-      newBoard[position + 8] = enPassant(piece);;
+      newBoard[position + 8] = enPassant(piece);
     }
+  }
+
+  // no way a king should be able to move by 2 squares, except for castling
+  if(isKing(piece) && Math.abs(position - intended) === 2) {
+    const direction = Math.sign(intended - position); // left is negative
+    var pos = position;
+    while(!isOnLeftEdge(pos) && !isOnRightEdge(pos)) {
+      pos += direction;
+    }
+
+    const rook = SanitisePiece(board[pos]);
+    newBoard[pos] = Piece.EMPTY;
+    newBoard[intended - direction] = rook;
   }
 
   return newBoard;
@@ -145,7 +204,9 @@ export const GetLegalMoves = (board: Board, position: number, piece?: Piece) => 
       return moves;
 
     case Piece.WHITE_ROOK:
+    case Piece.WHITE_ROOK_CASTLE:
     case Piece.BLACK_ROOK:
+    case Piece.BLACK_ROOK_CASTLE:
       moves = moves.concat(
         scan(board, piece, position, pos => pos + 8, isOnBottomRow)
       );
@@ -197,7 +258,9 @@ export const GetLegalMoves = (board: Board, position: number, piece?: Piece) => 
       return moves;
 
     case Piece.WHITE_KING:
+    case Piece.WHITE_KING_CASTLE:
     case Piece.BLACK_KING:
+    case Piece.BLACK_KING_CASTLE:
       if(!isOnTopRow(position)) {
         if(!isOnLeftEdge(position) && canTake(piece, board[position - 9])) moves.push(position - 9);
         if(canTake(piece, board[position - 8])) moves.push(position - 8);
@@ -212,6 +275,10 @@ export const GetLegalMoves = (board: Board, position: number, piece?: Piece) => 
         if(canTake(piece, board[position + 8])) moves.push(position + 8);
         if(!isOnRightEdge(position) && canTake(piece, board[position + 9])) moves.push(position + 9);
       }
+
+      const castle = canCastle(board, position);
+      if(castle.left) moves.push(position - 2);
+      if(castle.right) moves.push(position + 2);
 
       return moves;
 

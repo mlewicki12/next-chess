@@ -1,6 +1,6 @@
 
 import ChessPiece from 'react-chess-pieces';
-import { Piece } from '../services/chess';
+import { Piece, SanitisePiece } from '../services/chess';
 
 type Square = {
   index: number;
@@ -32,11 +32,11 @@ const Square = ({
       {legal && 
         <div className='absolute top-0 left-0'>
           <svg xmlns='http://www.w3.org/2000/svg' version='1.1'>
-            <circle cx='48' cy='48' r='25' stroke='black' stroke-width='4' fill='none' />
+            <circle cx='48' cy='48' r='25' stroke='black' strokeWidth='4' fill='none' />
           </svg>
         </div>
       }
-      {piece && <ChessPiece piece={piece} />}
+      {piece && <ChessPiece piece={SanitisePiece(piece)} />}
     </div>
   );
 }

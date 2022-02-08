@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 import { Board, GetLegalMoves, Piece, ProcessMove } from '../services/chess';
 import Square from '../components/square';
 
-const PieceMap = [ 'r', 'n', 'b', 'q', 'k', 'b', 'n', 'r' ];
+const PieceMap = [ 'rc', 'n', 'b', 'q', 'kc', 'b', 'n', 'rc' ];
 
 const defineBoard = () => {
   return Array.apply(null, Array(64)).map((_, index) =>
