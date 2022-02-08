@@ -130,7 +130,7 @@ export const GetLegalMoves = (board: Board, position: number, piece?: Piece) => 
       if(isOnTopRow(position)) return moves; // shouldn't be possible once upgrading pawns becomes a thing
       if(!isOnLeftEdge(position) && board[position - 9] !== Piece.EMPTY && canTake(board[position], board[position - 9])) moves.push(position - 9);
       if(!isOnRightEdge(position) && board[position - 7] !== Piece.EMPTY && canTake(board[position], board[position - 7])) moves.push(position - 7);
-      if(pawnHasntMoved(position, false) && board[position - 16] === Piece.EMPTY) moves.push(position - 16);
+      if(pawnHasntMoved(position, false) && board[position - 8] === Piece.EMPTY && board[position - 16] === Piece.EMPTY) moves.push(position - 16);
       if(board[position - 8] === Piece.EMPTY) moves.push(position - 8);
 
       return moves;
@@ -139,7 +139,7 @@ export const GetLegalMoves = (board: Board, position: number, piece?: Piece) => 
       if(isOnBottomRow(position)) return moves; // same deal as above
       if(!isOnLeftEdge(position) && board[position + 7] !== Piece.EMPTY && canTake(board[position], board[position + 7])) moves.push(position + 7);
       if(!isOnRightEdge(position) && board[position + 9] !== Piece.EMPTY && canTake(board[position], board[position + 9])) moves.push(position + 9);
-      if(pawnHasntMoved(position, true) && board[position + 16] === Piece.EMPTY) moves.push(position + 16);
+      if(pawnHasntMoved(position, true) && board[position + 8] === Piece.EMPTY && board[position + 16] === Piece.EMPTY) moves.push(position + 16);
       if(board[position + 8] === Piece.EMPTY) moves.push(position + 8);
 
       return moves;
