@@ -215,6 +215,30 @@ export const GetLegalMoves = (board: Board, position: number, piece?: Piece) => 
 
       return moves;
 
+    case Piece.WHITE_KNIGHT:
+    case Piece.BLACK_KNIGHT:
+      if(!isOnTopRow(position) && !isOnTopRow(position - 8)) {
+        if(!isOnLeftEdge(position) && canTake(piece, board[position - 17])) moves.push(position - 17);
+        if(!isOnRightEdge(position) && canTake(piece, board[position - 15])) moves.push(position - 15);
+      }
+
+      if(!isOnRightEdge(position) && !isOnRightEdge(position + 1)) {
+        if(!isOnTopRow(position) && canTake(piece, board[position - 6])) moves.push(position - 6);
+        if(!isOnBottomRow(position) && canTake(piece, board[position + 10])) moves.push(position + 10);
+      }
+
+      if(!isOnBottomRow(position) && !isOnBottomRow(position + 8)) {
+        if(!isOnRightEdge(position) && canTake(piece, board[position + 17])) moves.push(position + 17);
+        if(!isOnLeftEdge(position) && canTake(piece, board[position + 15])) moves.push(position + 15);
+      }
+
+      if(!isOnLeftEdge(position) && !isOnLeftEdge(position - 1)) {
+        if(!isOnBottomRow(position) && canTake(piece, board[position + 6])) moves.push(position + 6);
+        if(!isOnTopRow(position) && canTake(piece, board[position - 10])) moves.push(position - 10);
+      }
+
+      return moves;
+
     default:
       console.error('unimplemented GetLegalMoves piece');
       return [];
