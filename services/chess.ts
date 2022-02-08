@@ -1,3 +1,4 @@
+import { moveMessagePortToContext } from "worker_threads";
 
 export enum Piece {
   EMPTY = '',
@@ -26,10 +27,11 @@ const isInBounds = (position: number) => position >= 0 && position < 64;
 const isOnLeftEdge = (position: number) => position % 8 === 0;
 const isOnRightEdge = (position: number) => position % 8 === 7;
 
-const isOnFirstRow = (position: number) => position >= 56 && position < 64;
-const isOnLastRow = (position: number) => position < 8;
+const isOnBottomRow = (position: number) => position >= 56 && position < 64;
+const isOnTopRow = (position: number) => position < 8;
 
 const areOnSameRow = (position: number, other: number) => Math.floor(position / 8) === Math.floor(other / 8);
+const canTake = (piece: Piece, other: Piece) => !areSameColor(piece, other);
 
 // for the sake of this function en passant counts as empty
 const isEmpty = (piece: Piece) => piece === Piece.EMPTY || piece === Piece.WHITE_PAWN_EN_PASSANT || piece === Piece.BLACK_PAWN_EN_PASSANT;
@@ -119,24 +121,24 @@ export const ProcessMove = (board: Board, position: number, intended: number) =>
   return newBoard;
 }
 
-export const GetLegalMoves = (board: Board, position: number) => {
-  const piece = board[position];
-  const moves: number[] = [];
+export const GetLegalMoves = (board: Board, position: number, piece?: Piece) => {
+  piece = piece ?? board[position];
+  var moves: number[] = [];
 
   switch(piece) {
     case Piece.WHITE_PAWN:
-      if(isOnLastRow(position)) return moves; // shouldn't be possible once upgrading pawns becomes a thing
-      if(!isOnLeftEdge(position) && board[position - 9] !== Piece.EMPTY && !areSameColor(board[position], board[position - 9])) moves.push(position - 9);
-      if(!isOnRightEdge(position) && board[position - 7] !== Piece.EMPTY && !areSameColor(board[position], board[position - 7])) moves.push(position - 7);
+      if(isOnTopRow(position)) return moves; // shouldn't be possible once upgrading pawns becomes a thing
+      if(!isOnLeftEdge(position) && board[position - 9] !== Piece.EMPTY && canTake(board[position], board[position - 9])) moves.push(position - 9);
+      if(!isOnRightEdge(position) && board[position - 7] !== Piece.EMPTY && canTake(board[position], board[position - 7])) moves.push(position - 7);
       if(pawnHasntMoved(position, false) && board[position - 16] === Piece.EMPTY) moves.push(position - 16);
       if(board[position - 8] === Piece.EMPTY) moves.push(position - 8);
 
       return moves;
 
     case Piece.BLACK_PAWN:
-      if(isOnFirstRow(position)) return moves; // same deal as above
-      if(!isOnLeftEdge(position) && board[position + 7] !== Piece.EMPTY && !areSameColor(board[position], board[position + 7])) moves.push(position + 7);
-      if(!isOnRightEdge(position) && board[position + 9] !== Piece.EMPTY && !areSameColor(board[position], board[position + 9])) moves.push(position + 9);
+      if(isOnBottomRow(position)) return moves; // same deal as above
+      if(!isOnLeftEdge(position) && board[position + 7] !== Piece.EMPTY && canTake(board[position], board[position + 7])) moves.push(position + 7);
+      if(!isOnRightEdge(position) && board[position + 9] !== Piece.EMPTY && canTake(board[position], board[position + 9])) moves.push(position + 9);
       if(pawnHasntMoved(position, true) && board[position + 16] === Piece.EMPTY) moves.push(position + 16);
       if(board[position + 8] === Piece.EMPTY) moves.push(position + 8);
 
@@ -144,24 +146,73 @@ export const GetLegalMoves = (board: Board, position: number) => {
 
     case Piece.WHITE_ROOK:
     case Piece.BLACK_ROOK:
-      var movesMod: number[] = [];
-      movesMod = movesMod.concat(
-        scan(board, piece, position, pos => pos + 8, isOnFirstRow)
+      moves = moves.concat(
+        scan(board, piece, position, pos => pos + 8, isOnBottomRow)
       );
 
-      movesMod = movesMod.concat(
-        scan(board, piece, position, pos => pos - 8, isOnLastRow)
+      moves = moves.concat(
+        scan(board, piece, position, pos => pos - 8, isOnTopRow)
       );
 
-      movesMod = movesMod.concat(
+      moves = moves.concat(
         scan(board, piece, position, pos => pos - 1, isOnLeftEdge)
       );
 
-      movesMod = movesMod.concat(
+      moves = moves.concat(
         scan(board, piece, position, pos => pos + 1, isOnRightEdge)
       );
 
-      movesMod.forEach(move => moves.push(move));
+      return moves;
+
+    case Piece.WHITE_BISHOP:
+    case Piece.BLACK_BISHOP:
+      moves = moves.concat(
+        scan(board, piece, position, pos => pos - 9, (pos) => isOnLeftEdge(pos) || isOnTopRow(pos))
+      );
+
+      moves = moves.concat(
+        scan(board, piece, position, pos => pos - 7, (pos) => isOnRightEdge(pos) || isOnTopRow(pos))
+      );
+
+      moves = moves.concat(
+        scan(board, piece, position, pos => pos + 9, (pos) => isOnRightEdge(pos) || isOnBottomRow(pos))
+      );
+
+      moves = moves.concat(
+        scan(board, piece, position, pos => pos + 7, (pos) => isOnLeftEdge(pos) || isOnBottomRow(pos))
+      );
+
+      return moves;
+
+    case Piece.WHITE_QUEEN:
+    case Piece.BLACK_QUEEN:
+      moves = moves.concat(
+        GetLegalMoves(board, position, isBlack(piece) ? Piece.BLACK_BISHOP : Piece.WHITE_BISHOP)
+      );
+
+      moves = moves.concat(
+        GetLegalMoves(board, position, isBlack(piece) ? Piece.BLACK_ROOK : Piece.WHITE_ROOK)
+      );
+
+      return moves;
+
+    case Piece.WHITE_KING:
+    case Piece.BLACK_KING:
+      if(!isOnTopRow(position)) {
+        if(!isOnLeftEdge(position) && canTake(piece, board[position - 9])) moves.push(position - 9);
+        if(canTake(piece, board[position - 8])) moves.push(position - 8);
+        if(!isOnRightEdge(position) && canTake(piece, board[position - 7])) moves.push(position - 7);
+      }
+
+      if(!isOnLeftEdge(position) && canTake(piece, board[position - 1])) moves.push(position - 1);
+      if(!isOnRightEdge(position) && canTake(piece, board[position + 1])) moves.push(position + 1); 
+
+      if(!isOnBottomRow(position)) {
+        if(!isOnLeftEdge(position) && canTake(piece, board[position + 7])) moves.push(position + 7);
+        if(canTake(piece, board[position + 8])) moves.push(position + 8);
+        if(!isOnRightEdge(position) && canTake(piece, board[position + 9])) moves.push(position + 9);
+      }
+
       return moves;
 
     default:
