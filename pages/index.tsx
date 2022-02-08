@@ -4,7 +4,7 @@ import Head from 'next/head'
 
 import { useState, useEffect } from 'react';
 
-import { Board, GetLegalMoves, Piece, ProcessMove } from '../services/chess';
+import { Board, GetLegalMoves, isBlack, IsCheckmate, isWhite, Piece, ProcessMove } from '../services/chess';
 import Square from '../components/square';
 
 const PieceMap = [ 'rc', 'n', 'b', 'q', 'kc', 'b', 'n', 'rc' ];
@@ -26,14 +26,22 @@ const Home: NextPage = () => {
   const [board, setBoard] = useState<Board>(defineBoard());
   const [selected, setSelected] = useState<number>(-1);
   const [legalMoves, setLegalMoves] = useState<number[]>([]);
+  const [whiteTurn, setWhiteTurn] = useState<boolean>(true);
+  const [checkmate, setCheckmate] = useState<boolean>(false);
 
   useEffect(() => {
     setLegalMoves(
       selected !== -1
-        ? GetLegalMoves(board, selected)
+        ? GetLegalMoves(board, selected, undefined, undefined, true)
         : []
     );
   }, [selected]);
+
+  useEffect(() => {
+    if(checkmate) {
+      console.log('checkmate');
+    }
+  }, [checkmate]);
 
   return (
     <>
@@ -55,7 +63,17 @@ const Home: NextPage = () => {
               legal={legalMoves.includes(index)}
               selected={selected}
               setSelected={setSelected}
-              onMove={(position, intended) => setBoard(ProcessMove(board, position, intended))}
+              canSelect={(piece) => whiteTurn ? isWhite(piece) : isBlack(piece)}
+              onMove={(position, intended) => {
+                const newBoard = ProcessMove(board, position, intended);
+
+                setBoard(newBoard);
+                setWhiteTurn(!whiteTurn);
+
+                setCheckmate(
+                  IsCheckmate(newBoard, whiteTurn)
+                );
+              }}
               dark={Math.floor(index / 8) % 2 === 0 ? index % 2 === 1 : index % 2 === 0}
             />
           </>

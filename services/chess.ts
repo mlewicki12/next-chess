@@ -90,8 +90,8 @@ const WhitePieces = [ Piece.WHITE_PAWN, Piece.WHITE_PAWN_EN_PASSANT, Piece.WHITE
 const BlackPieces = [ Piece.BLACK_PAWN, Piece.BLACK_PAWN_EN_PASSANT, Piece.BLACK_ROOK, Piece.BLACK_ROOK_CASTLE,
   Piece.BLACK_KNIGHT, Piece.BLACK_BISHOP, Piece.BLACK_QUEEN, Piece.BLACK_KING, Piece.BLACK_KING_CASTLE ];
 
-const isWhite = (piece: Piece) => WhitePieces.includes(piece);
-const isBlack = (piece: Piece) => BlackPieces.includes(piece);
+export const isWhite = (piece: Piece) => WhitePieces.includes(piece);
+export const isBlack = (piece: Piece) => BlackPieces.includes(piece);
 
 const areSameColor = (piece: Piece, other: Piece) => 
   (WhitePieces.includes(piece) && WhitePieces.includes(other)) ||
@@ -101,27 +101,69 @@ const pawnHasntMoved = (position: number, black: boolean) => black
   ? position >= 8 && position < 16
   : position >= 48 && position < 56;
 
-const scan = (board: Board, piece: Piece, position: number, mod: (position: number) => number, end: (position: number) => boolean) => {
+const findKing = (board: Board, black?: boolean) => {
+  const position = board.findIndex(piece => isKing(piece) && (black ? isBlack(piece) : isWhite(piece)));
+  return position;
+}
+
+const findAllPieces = (board: Board, black?: boolean) => {
+  const pieces = board.map(piece => black ? isBlack(piece) : isWhite(piece)).reduce((prev, next, index) => next ? [...prev, index] : prev, [] as number[]);
+  return pieces;
+}
+
+const scan = (board: Board, position: number, mod: (position: number) => number, end: (position: number) => boolean, edge?: boolean) => {
   const moves: number[] = [];
   if(end(position)) return moves;
 
   var pos = mod(position);
   while(isInBounds(pos)) {
     if(!isEmpty(board[pos])) {
-      if(!areSameColor(piece, board[pos])) {
+      if(!areSameColor(board[position], board[pos])) {
         moves.push(pos);
       }
 
       break;
     }
 
-    moves.push(pos);
+    if(!edge) moves.push(pos);
 
     if(end(pos)) break;
     pos = mod(pos);
   }
 
   return moves;
+}
+
+const isInCheck = (board: Board, position: number, piece?: Piece) => {
+  const checks: number[] = [];
+  piece = piece ?? board[position];
+
+  // get all possible edge moves using a queen and knight as reference
+  const possibleChecks = [
+    ...GetLegalMoves(board, position, isWhite(piece) ? Piece.WHITE_QUEEN : Piece.BLACK_QUEEN, true),
+    ...GetLegalMoves(board, position, isWhite(piece) ? Piece.WHITE_KNIGHT : Piece.BLACK_KNIGHT, true)
+  ].reduce((prev, next) => prev.includes(next) ? prev : [...prev, next], [] as number[])
+
+  possibleChecks.forEach(pos => {
+    const moves = GetLegalMoves(board, pos, board[pos], false);
+    if(moves.includes(position)) {
+      checks.push(pos);
+    }
+  });
+
+  return checks.length > 0;
+}
+
+export const IsCheckmate = (board: Board, black?: boolean) => {
+  const king = findKing(board, black);
+  const check = isInCheck(board, king);
+
+  if(!check) return false;
+
+  const moves = findAllPieces(board, black).map(piece => GetLegalMoves(board, piece, undefined, false, true))
+    .reduce((prev, next) => [...prev, ...next], [] as number[]);
+
+  return moves.length <= 0;
 }
 
 export const ProcessMove = (board: Board, position: number, intended: number) => {
@@ -180,7 +222,8 @@ export const ProcessMove = (board: Board, position: number, intended: number) =>
   return newBoard;
 }
 
-export const GetLegalMoves = (board: Board, position: number, piece?: Piece) => {
+export const GetLegalMoves = (board: Board, position: number, piece?: Piece, edge?: boolean, includeChecks?: boolean) => {
+  // piece argument mainly used by the queen to combine rook and bishop moves
   piece = piece ?? board[position];
   var moves: number[] = [];
 
@@ -192,7 +235,7 @@ export const GetLegalMoves = (board: Board, position: number, piece?: Piece) => 
       if(pawnHasntMoved(position, false) && board[position - 8] === Piece.EMPTY && board[position - 16] === Piece.EMPTY) moves.push(position - 16);
       if(board[position - 8] === Piece.EMPTY) moves.push(position - 8);
 
-      return moves;
+      break;
 
     case Piece.BLACK_PAWN:
       if(isOnBottomRow(position)) return moves; // same deal as above
@@ -201,49 +244,49 @@ export const GetLegalMoves = (board: Board, position: number, piece?: Piece) => 
       if(pawnHasntMoved(position, true) && board[position + 8] === Piece.EMPTY && board[position + 16] === Piece.EMPTY) moves.push(position + 16);
       if(board[position + 8] === Piece.EMPTY) moves.push(position + 8);
 
-      return moves;
+      break;
 
     case Piece.WHITE_ROOK:
     case Piece.WHITE_ROOK_CASTLE:
     case Piece.BLACK_ROOK:
     case Piece.BLACK_ROOK_CASTLE:
       moves = moves.concat(
-        scan(board, piece, position, pos => pos + 8, isOnBottomRow)
+        scan(board, position, pos => pos + 8, isOnBottomRow, edge)
       );
 
       moves = moves.concat(
-        scan(board, piece, position, pos => pos - 8, isOnTopRow)
+        scan(board, position, pos => pos - 8, isOnTopRow, edge)
       );
 
       moves = moves.concat(
-        scan(board, piece, position, pos => pos - 1, isOnLeftEdge)
+        scan(board, position, pos => pos - 1, isOnLeftEdge, edge)
       );
 
       moves = moves.concat(
-        scan(board, piece, position, pos => pos + 1, isOnRightEdge)
+        scan(board, position, pos => pos + 1, isOnRightEdge, edge)
       );
 
-      return moves;
+      break;
 
     case Piece.WHITE_BISHOP:
     case Piece.BLACK_BISHOP:
       moves = moves.concat(
-        scan(board, piece, position, pos => pos - 9, (pos) => isOnLeftEdge(pos) || isOnTopRow(pos))
+        scan(board, position, pos => pos - 9, (pos) => isOnLeftEdge(pos) || isOnTopRow(pos), edge)
       );
 
       moves = moves.concat(
-        scan(board, piece, position, pos => pos - 7, (pos) => isOnRightEdge(pos) || isOnTopRow(pos))
+        scan(board, position, pos => pos - 7, (pos) => isOnRightEdge(pos) || isOnTopRow(pos), edge)
       );
 
       moves = moves.concat(
-        scan(board, piece, position, pos => pos + 9, (pos) => isOnRightEdge(pos) || isOnBottomRow(pos))
+        scan(board, position, pos => pos + 9, (pos) => isOnRightEdge(pos) || isOnBottomRow(pos), edge)
       );
 
       moves = moves.concat(
-        scan(board, piece, position, pos => pos + 7, (pos) => isOnLeftEdge(pos) || isOnBottomRow(pos))
+        scan(board, position, pos => pos + 7, (pos) => isOnLeftEdge(pos) || isOnBottomRow(pos), edge)
       );
 
-      return moves;
+      break;
 
     case Piece.WHITE_QUEEN:
     case Piece.BLACK_QUEEN:
@@ -255,7 +298,7 @@ export const GetLegalMoves = (board: Board, position: number, piece?: Piece) => 
         GetLegalMoves(board, position, isBlack(piece) ? Piece.BLACK_ROOK : Piece.WHITE_ROOK)
       );
 
-      return moves;
+      break;
 
     case Piece.WHITE_KING:
     case Piece.WHITE_KING_CASTLE:
@@ -280,7 +323,7 @@ export const GetLegalMoves = (board: Board, position: number, piece?: Piece) => 
       if(castle.left) moves.push(position - 2);
       if(castle.right) moves.push(position + 2);
 
-      return moves;
+      break;
 
     case Piece.WHITE_KNIGHT:
     case Piece.BLACK_KNIGHT:
@@ -304,10 +347,28 @@ export const GetLegalMoves = (board: Board, position: number, piece?: Piece) => 
         if(!isOnTopRow(position) && canTake(piece, board[position - 10])) moves.push(position - 10);
       }
 
-      return moves;
+      break;
 
     default:
-      console.error('unimplemented GetLegalMoves piece');
       return [];
   }
+
+  if(includeChecks) {
+    const king = findKing(board, isBlack(piece));
+    const check = isInCheck(board, king);
+
+      // for some reason typescript throws a fit if i use piece in the filter, so this is a workaround
+    const piece_copy = piece;
+
+    const checkMoves = moves.filter(move => {
+      // simulate every move and see if we're still in check
+      const newBoard = ProcessMove(board, position, move);
+      const newKing = findKing(newBoard, isBlack(piece_copy));
+      return !isInCheck(newBoard, newKing);
+    });
+
+    return checkMoves;
+  }
+
+  return moves;
 };

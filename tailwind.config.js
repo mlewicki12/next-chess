@@ -1,3 +1,6 @@
+
+const colors = require('tailwindcss/colors');
+
 module.exports = {
   mode: 'jit',
   content: [
@@ -8,7 +11,8 @@ module.exports = {
     colors: {
       primary: '#769756',
       secondary: '#eeeed2',
-      background: '#baca44'
+      background: '#baca44',
+      rose: colors.rose
     },
     extend: {},
   },

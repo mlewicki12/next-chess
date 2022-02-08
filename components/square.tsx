@@ -7,6 +7,7 @@ type Square = {
   legal: boolean;
   selected: number;
   setSelected: (id: number) => void;
+  canSelect: (piece: Piece) => boolean;
   onMove: (position: number, intended: number) => void;
 
   dark?: boolean;
@@ -14,8 +15,8 @@ type Square = {
 };
 
 const Square = ({
-  index, legal, setSelected, onMove,
-  dark, selected, piece
+  index, legal, setSelected, canSelect,
+  onMove, dark, selected, piece
 }: Square) => {
   return (
     <div onClick={() => {
@@ -23,17 +24,16 @@ const Square = ({
         onMove(selected, index);
         setSelected(-1);
       } else {
-        piece && (selected === index ? setSelected(-1) : setSelected(index));
+        piece && canSelect(piece) &&
+          (selected === index ? setSelected(-1) : setSelected(index));
       }
     }}
       className={`${dark ? 'bg-primary' : 'bg-secondary'}
-      ${selected === index ? 'scale-110 z-50 shadow-xl' : 'scale-100'}
+      ${selected === index ? 'scale-110 z-50 shadow-2xl' : 'scale-100'}
       transition duration-150 relative w-24 h-24`}>
       {legal && 
-        <div className='absolute top-0 left-0'>
-          <svg xmlns='http://www.w3.org/2000/svg' version='1.1'>
-            <circle cx='48' cy='48' r='25' stroke='black' strokeWidth='4' fill='none' />
-          </svg>
+        <div className='absolute top-0 left-0 w-full h-full flex justify-center items-center'>
+          <div className='w-12 h-12 opacity-75 rounded-full bg-rose-600 shadow-2xl' />
         </div>
       }
       {piece && <ChessPiece piece={SanitisePiece(piece)} />}
