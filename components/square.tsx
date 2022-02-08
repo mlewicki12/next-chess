@@ -1,42 +1,41 @@
 
 import ChessPiece from 'react-chess-pieces';
+import { Piece } from '../services/chess';
 
 type Square = {
   index: number;
-  selected: boolean;
+  legal: boolean;
+  selected: number;
   setSelected: (id: number) => void;
+  onMove: (position: number, intended: number) => void;
 
   dark?: boolean;
   piece?: Piece;
 };
 
-export enum Piece {
-  EMPTY = '',
-
-  WHITE_PAWN = 'P',
-  WHITE_ROOK = 'R',
-  WHITE_KNIGHT = 'N',
-  WHITE_BISHOP = 'B',
-  WHITE_QUEEN = 'Q',
-  WHITE_KING = 'K',
-  
-  BLACK_PAWN = 'p',
-  BLACK_ROOK = 'r',
-  BLACK_KNIGHT = 'n',
-  BLACK_BISHOP = 'b',
-  BLACK_QUEEN = 'q',
-  BLACK_KING = 'k',
-}
-
 const Square = ({
-  index, setSelected, dark, selected, piece
+  index, legal, setSelected, onMove,
+  dark, selected, piece
 }: Square) => {
   return (
-    // kinda hacky, but it works
-    <div onClick={() => piece && (selected ? setSelected(-1) : setSelected(index))}
+    <div onClick={() => {
+      if(legal) {
+        onMove(selected, index);
+        setSelected(-1);
+      } else {
+        piece && (selected === index ? setSelected(-1) : setSelected(index));
+      }
+    }}
       className={`${dark ? 'bg-primary' : 'bg-secondary'}
-      ${selected ? 'scale-125 z-50 shadow-xl' : 'scale-100'}
-      w-24 h-24`}>
+      ${selected === index ? 'scale-110 z-50 shadow-xl' : 'scale-100'}
+      transition duration-150 relative w-24 h-24`}>
+      {legal && 
+        <div className='absolute top-0 left-0'>
+          <svg xmlns='http://www.w3.org/2000/svg' version='1.1'>
+            <circle cx='48' cy='48' r='25' stroke='black' stroke-width='4' fill='none' />
+          </svg>
+        </div>
+      }
       {piece && <ChessPiece piece={piece} />}
     </div>
   );
