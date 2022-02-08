@@ -21,12 +21,18 @@ export enum Piece {
 
 export type Board = Piece[];
 
+const isInBounds = (position: number) => position >= 0 && position < 64;
+
 const isOnLeftEdge = (position: number) => position % 8 === 0;
 const isOnRightEdge = (position: number) => position % 8 === 7;
 
 const isOnFirstRow = (position: number) => position >= 56 && position < 64;
 const isOnLastRow = (position: number) => position < 8;
 
+const areOnSameRow = (position: number, other: number) => Math.floor(position / 8) === Math.floor(other / 8);
+
+// for the sake of this function en passant counts as empty
+const isEmpty = (piece: Piece) => piece === Piece.EMPTY || piece === Piece.WHITE_PAWN_EN_PASSANT || piece === Piece.BLACK_PAWN_EN_PASSANT;
 const isPawn = (piece: Piece) => piece === Piece.WHITE_PAWN || piece === Piece.BLACK_PAWN;
 const enPassant = (piece: Piece) => piece === Piece.WHITE_PAWN ? Piece.WHITE_PAWN_EN_PASSANT : Piece.BLACK_PAWN_EN_PASSANT;
 const isEnPassant = (piece: Piece) => piece === Piece.WHITE_PAWN_EN_PASSANT || piece === Piece.BLACK_PAWN_EN_PASSANT;
@@ -48,6 +54,29 @@ const pawnHasntMoved = (position: number, black: boolean) => black
   ? position >= 8 && position < 16
   : position >= 48 && position < 56;
 
+const scan = (board: Board, piece: Piece, position: number, mod: (position: number) => number, end: (position: number) => boolean) => {
+  const moves: number[] = [];
+  if(end(position)) return moves;
+
+  var pos = mod(position);
+  while(isInBounds(pos)) {
+    if(!isEmpty(board[pos])) {
+      if(!areSameColor(piece, board[pos])) {
+        moves.push(pos);
+      }
+
+      break;
+    }
+
+    moves.push(pos);
+
+    if(end(pos)) break;
+    pos = mod(pos);
+  }
+
+  return moves;
+}
+
 export const ProcessMove = (board: Board, position: number, intended: number) => {
   if(position < 0 || position >= 64 ||
       intended < 0 || intended >= 64) {
@@ -59,9 +88,8 @@ export const ProcessMove = (board: Board, position: number, intended: number) =>
   const newBoard = board.slice();
   const piece = newBoard[position];
 
-  console.log(newBoard[intended]);
   if(newBoard[intended] !== Piece.EMPTY) {
-    if(isEnPassant(newBoard[intended])) {
+    if(isEnPassant(newBoard[intended]) && !areSameColor(newBoard[position], newBoard[intended])) {
       // if the piece is en passant, we need to kill the pawn above it
       if(isWhite(newBoard[intended])) {
         newBoard[intended - 8] = Piece.EMPTY;
@@ -112,6 +140,28 @@ export const GetLegalMoves = (board: Board, position: number) => {
       if(pawnHasntMoved(position, true) && board[position + 16] === Piece.EMPTY) moves.push(position + 16);
       if(board[position + 8] === Piece.EMPTY) moves.push(position + 8);
 
+      return moves;
+
+    case Piece.WHITE_ROOK:
+    case Piece.BLACK_ROOK:
+      var movesMod: number[] = [];
+      movesMod = movesMod.concat(
+        scan(board, piece, position, pos => pos + 8, isOnFirstRow)
+      );
+
+      movesMod = movesMod.concat(
+        scan(board, piece, position, pos => pos - 8, isOnLastRow)
+      );
+
+      movesMod = movesMod.concat(
+        scan(board, piece, position, pos => pos - 1, isOnLeftEdge)
+      );
+
+      movesMod = movesMod.concat(
+        scan(board, piece, position, pos => pos + 1, isOnRightEdge)
+      );
+
+      movesMod.forEach(move => moves.push(move));
       return moves;
 
     default:
