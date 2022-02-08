@@ -65,6 +65,8 @@ const canCastle = (board: Board, position: number) => {
 
   while(!isOnLeftEdge(pos)) {
     if(!isEmpty(board[pos])) break;
+    if(isInCheck(board, pos, board[position])) break;
+    
     pos -= 1;
   }
 
@@ -77,6 +79,8 @@ const canCastle = (board: Board, position: number) => {
   pos = position + 1;
   while(!isOnRightEdge(pos)) {
     if(!isEmpty(board[pos])) break;
+    if(isInCheck(board, pos, board[position])) break;
+
     pos += 1;
   }
 
@@ -140,12 +144,12 @@ const isInCheck = (board: Board, position: number, piece?: Piece) => {
 
   // get all possible edge moves using a queen and knight as reference
   const possibleChecks = [
-    ...GetLegalMoves(board, position, isWhite(piece) ? Piece.WHITE_QUEEN : Piece.BLACK_QUEEN, true),
-    ...GetLegalMoves(board, position, isWhite(piece) ? Piece.WHITE_KNIGHT : Piece.BLACK_KNIGHT, true)
+    ...GetLegalMoves(board, position, isWhite(piece) ? Piece.WHITE_QUEEN : Piece.BLACK_QUEEN, true, false, true),
+    ...GetLegalMoves(board, position, isWhite(piece) ? Piece.WHITE_KNIGHT : Piece.BLACK_KNIGHT, true, false, true)
   ].reduce((prev, next) => prev.includes(next) ? prev : [...prev, next], [] as number[])
 
   possibleChecks.forEach(pos => {
-    const moves = GetLegalMoves(board, pos, board[pos], false);
+    const moves = GetLegalMoves(board, pos, board[pos], false, false, true);
     if(moves.includes(position)) {
       checks.push(pos);
     }
@@ -222,7 +226,7 @@ export const ProcessMove = (board: Board, position: number, intended: number) =>
   return newBoard;
 }
 
-export const GetLegalMoves = (board: Board, position: number, piece?: Piece, edge?: boolean, includeChecks?: boolean) => {
+export const GetLegalMoves = (board: Board, position: number, piece?: Piece, edge?: boolean, includeChecks?: boolean, ignoreCastle?: boolean) => {
   // piece argument mainly used by the queen to combine rook and bishop moves
   piece = piece ?? board[position];
   var moves: number[] = [];
@@ -319,9 +323,11 @@ export const GetLegalMoves = (board: Board, position: number, piece?: Piece, edg
         if(!isOnRightEdge(position) && canTake(piece, board[position + 9])) moves.push(position + 9);
       }
 
-      const castle = canCastle(board, position);
-      if(castle.left) moves.push(position - 2);
-      if(castle.right) moves.push(position + 2);
+      if(!ignoreCastle) {
+        const castle = canCastle(board, position);
+        if(castle.left) moves.push(position - 2);
+        if(castle.right) moves.push(position + 2);
+      }
 
       break;
 
