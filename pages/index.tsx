@@ -61,8 +61,8 @@ const Home: NextPage = () => {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <main className='p-2 grid grid-cols-2'>
-        <div className='p-2 grid grid-cols-9 grid-rows-9 gap-2'>
+      <main className='p-2 flex flex-col lg:flex-row'>
+        <div className='p-2 grid grid-cols-9 grid-rows-9 gap-2 w-max'>
           {board.map((item, index) => ( 
             <>
               {index % 8 === 0 && <div key={`piece-${8-(index/8)}`} className='w-12 h-12 flex justify-center items-center text-lg font-bold bg-background
@@ -102,7 +102,7 @@ const Home: NextPage = () => {
           ))}
         </div>
 
-        <div className='p-2'>
+        <div className='p-2 w-max'>
           {mapMoves().map((move, index) => (
             <p>{index + 1}: {move[0]}{move.length > 1 && '\t'}{move.length > 1 && move[1]}</p>
           ))}
