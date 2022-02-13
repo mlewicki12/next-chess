@@ -39,6 +39,15 @@ export const SanitisePiece = (piece: Piece) =>
 
 export type Board = Piece[];
 
+export type Move = {
+  start: number;
+  end: number;
+  algebraic: string;
+
+  piece: Piece;
+  captured?: Piece;
+};
+
 const isInBounds = (position: number) => position >= 0 && position < 64;
 
 const isOnLeftEdge = (position: number) => position % 8 === 0;
@@ -158,6 +167,59 @@ const isInCheck = (board: Board, position: number, piece?: Piece) => {
   return checks.length > 0;
 }
 
+const getPosition = (position: number) => {
+  const ranks = ['8', '7', '6', '5', '4', '3', '2', '1'];
+  const files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+
+  const rank = Math.floor(position / 8);
+  const file = position % 8;
+
+  return {
+    rank: ranks[rank],
+    file: files[file]
+  };
+}
+
+const GetAlgebraicNotation = (board: Board, move: Move) => {
+  // if the piece is a pawn don't capitalize
+  const piece = SanitisePiece(move.piece);
+  const position = getPosition(move.start);
+
+  // can another piece of the same type move there
+  const ambigousMoves = board
+    .map((piece, index) => ({piece: piece, index: index}))
+    .filter(item => item.index !== move.start)
+    .filter(item => SanitisePiece(item.piece) === piece)
+    .map(item => ({piece: item.piece, index: item.index, moves: GetLegalMoves(board, item.index)}))
+    .filter(item => item.moves.includes(move.end))
+    .map(item => ({piece: item.piece, position: getPosition(item.index)}));
+
+  let postfix = '';
+  console.log(ambigousMoves);
+  if(ambigousMoves.length > 0) {
+    const files = ambigousMoves.filter(item => item.position.file === position.file);
+    if(files.length > 0) {
+      const ranks = ambigousMoves.filter(item => item.position.rank === position.rank);
+      if(ranks.length > 0) {
+        // conflicting files and ranks
+        postfix = position.file + position.rank;
+      } else {
+        postfix = position.rank;
+      }
+    } else {
+      // no conflicting files
+      postfix = position.file;
+    }
+  }
+
+  // if it's a pawn omit it
+  const pieceString = isPawn(piece) ? '' : piece;
+  const capture = !!move.captured ? 'x' : '';
+  const destination = getPosition(move.end);
+
+  return `${pieceString}${postfix}${capture}${destination.file}${destination.rank}`;
+}
+
 export const IsCheckmate = (board: Board, black?: boolean) => {
   const king = findKing(board, black);
   const check = isInCheck(board, king);
@@ -174,12 +236,17 @@ export const ProcessMove = (board: Board, position: number, intended: number) =>
   if(position < 0 || position >= 64 ||
       intended < 0 || intended >= 64) {
     // don't process the move, somehow alert the user it's a bad move
-    return board;
+    return {
+      board: board,
+      move: undefined
+    };
   }
 
   // TODO: needs a check for legal move
   const newBoard = board.slice();
+
   const piece = newBoard[position];
+  const captured = newBoard[intended] !== Piece.EMPTY ? newBoard[intended] : undefined;
 
   if(newBoard[intended] !== Piece.EMPTY) {
     if(isEnPassant(newBoard[intended]) && !areSameColor(newBoard[position], newBoard[intended])) {
@@ -222,8 +289,22 @@ export const ProcessMove = (board: Board, position: number, intended: number) =>
     newBoard[pos] = Piece.EMPTY;
     newBoard[intended - direction] = rook;
   }
+  
+  const move: Move = {
+    start: position,
+    end: intended,
+    algebraic: '',
 
-  return newBoard;
+    piece: piece,
+    captured: captured
+  };
+
+  move.algebraic = GetAlgebraicNotation(board, move);
+
+  return {
+    board: newBoard,
+    move: move
+  };
 }
 
 export const GetLegalMoves = (board: Board, position: number, piece?: Piece, edge?: boolean, includeChecks?: boolean, ignoreCastle?: boolean) => {
@@ -369,8 +450,8 @@ export const GetLegalMoves = (board: Board, position: number, piece?: Piece, edg
     const checkMoves = moves.filter(move => {
       // simulate every move and see if we're still in check
       const newBoard = ProcessMove(board, position, move);
-      const newKing = findKing(newBoard, isBlack(piece_copy));
-      return !isInCheck(newBoard, newKing);
+      const newKing = findKing(newBoard.board, isBlack(piece_copy));
+      return !isInCheck(newBoard.board, newKing);
     });
 
     return checkMoves;
