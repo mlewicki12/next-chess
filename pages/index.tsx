@@ -3,9 +3,11 @@ import type { NextPage } from 'next'
 import Head from 'next/head'
 
 import { useState, useEffect } from 'react';
+import { FaClock } from 'react-icons/fa';
 
 import { Board, GetLegalMoves, isBlack, IsCheckmate, isWhite, Move, Piece, ProcessMove } from '../services/chess';
 import Square from '../components/square';
+import Timer from '../components/timer';
 
 const PieceMap = [ 'rc', 'n', 'b', 'q', 'kc', 'b', 'n', 'rc' ];
 
@@ -31,6 +33,10 @@ const Home: NextPage = () => {
   const [whiteTurn, setWhiteTurn] = useState<boolean>(true);
   const [checkmate, setCheckmate] = useState<boolean>(false);
 
+  const [whiteWin, setWhiteWin] = useState<boolean>();
+  const [whiteTime, setWhiteTime] = useState<number>(600);
+  const [blackTime, setBlackTime] = useState<number>(600);
+
   const mapMoves = () => {
     return moves.map(move => move.algebraic).reduce((prev, next, index, arr) => {
       if(index % 2 === 1) return prev;
@@ -50,8 +56,17 @@ const Home: NextPage = () => {
   useEffect(() => {
     if(checkmate) {
       console.log('checkmate');
+      setWhiteWin(whiteTurn);
     }
   }, [checkmate]);
+
+  useEffect(() => {
+    if(whiteTime === 0) {
+      setWhiteWin(false);
+    } else if(blackTime === 0) {
+      setWhiteWin(true);
+    }
+  }, [whiteTime, blackTime]);
 
   return (
     <>
@@ -75,7 +90,7 @@ const Home: NextPage = () => {
                 index={index}
                 legal={legalMoves.includes(index)}
                 selected={selected}
-                setSelected={setSelected}
+                setSelected={whiteWin !== undefined ? () => {} : setSelected}
                 canSelect={(piece) => whiteTurn ? isWhite(piece) : isBlack(piece)}
                 onMove={(position, intended) => {
                   const processed = ProcessMove(board, position, intended);
@@ -100,6 +115,12 @@ const Home: NextPage = () => {
               lg:w-24 lg:h-24
               '>{item}</div>
           ))}
+        </div>
+
+        <div className='p-2 w-max full flex flex-col justify-between pb-[112px]'>
+            <Timer key='black-timer' active={!whiteTurn && whiteWin === undefined} time={blackTime} setTime={setBlackTime} win={whiteWin} />
+
+            <Timer key='white-timer' active={whiteTurn && whiteWin === undefined} time={whiteTime} setTime={setWhiteTime} win={whiteWin === false} secondary />
         </div>
 
         <div className='p-2 w-max'>
