@@ -117,7 +117,7 @@ const Home: NextPage = () => {
           ))}
         </div>
 
-        <div className='p-2 w-max full flex flex-col justify-between pb-[112px]'>
+        <div className='p-2 flex flex-row w-full lg:flex-col lg:w-max justify-between lg:pb-[112px]'>
             <Timer key='black-timer' active={!whiteTurn && whiteWin === undefined} time={blackTime} setTime={setBlackTime} win={whiteWin} />
 
             <Timer key='white-timer' active={whiteTurn && whiteWin === undefined} time={whiteTime} setTime={setWhiteTime} win={whiteWin === false} secondary />
